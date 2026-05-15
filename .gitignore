@@ -3,5 +3,6 @@ __pycache__/
 *.pyo
 .env
 watcher.log
+config.py
 .DS_Store
 Thumbs.db

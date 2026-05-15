@@ -1,7 +1,6 @@
 """
-CV Auto-Deploy Pipeline — runs silently in the background.
-Watches Tehman CV.docx, converts to PDF, pushes to GitHub.
-Vercel auto-deploys on every push.
+CV Watcher — runs silently in the background via pythonw.exe.
+When Tehman CV.docx is saved, opens a visible terminal running deploy.py.
 """
 
 import sys
@@ -9,7 +8,6 @@ import time
 import subprocess
 import logging
 from pathlib import Path
-from datetime import datetime
 
 try:
     from watchdog.observers import Observer
@@ -19,18 +17,11 @@ except ImportError:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 
-try:
-    from docx2pdf import convert
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "docx2pdf"], check=True)
-    from docx2pdf import convert
+BASE_DIR     = Path(__file__).parent.resolve()
+DOCX         = BASE_DIR / "Tehman CV.docx"
+DEPLOY_SCRIPT = BASE_DIR / "deploy.py"
+LOG_FILE     = BASE_DIR / "watcher.log"
 
-BASE_DIR = Path(__file__).parent.resolve()
-DOCX     = BASE_DIR / "Tehman CV.docx"
-PDF      = BASE_DIR / "Tehman CV.pdf"
-LOG_FILE = BASE_DIR / "watcher.log"
-
-# Log to file so you can check what happened even when running silently
 logging.basicConfig(
     filename=str(LOG_FILE),
     level=logging.INFO,
@@ -38,43 +29,15 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-def log(msg):
-    logging.info(msg)
-    print(msg, flush=True)
 
-
-def git(args):
-    return subprocess.run(
-        ["git"] + args,
+def open_deploy_terminal():
+    """Open a new visible terminal window running deploy.py."""
+    logging.info("Change detected — opening deploy terminal.")
+    subprocess.Popen(
+        [sys.executable, str(DEPLOY_SCRIPT)],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
         cwd=str(BASE_DIR),
-        capture_output=True,
-        text=True,
     )
-
-
-def convert_and_deploy():
-    log("Change detected — converting to PDF...")
-
-    try:
-        convert(str(DOCX), str(PDF))
-        log("PDF updated.")
-    except Exception as e:
-        log(f"Conversion failed: {e}")
-        return
-
-    log("Pushing to GitHub...")
-    git(["add", "Tehman CV.pdf"])
-
-    result = git(["commit", "-m", "chore: auto-update CV PDF [skip ci]"])
-    if "nothing to commit" in result.stdout:
-        log("PDF unchanged — nothing to push.")
-        return
-
-    push = git(["push"])
-    if push.returncode == 0:
-        log("Pushed. Vercel is deploying the new version.")
-    else:
-        log(f"Push failed: {push.stderr.strip()}")
 
 
 class CVHandler(FileSystemEventHandler):
@@ -85,10 +48,10 @@ class CVHandler(FileSystemEventHandler):
         if Path(event.src_path).resolve() != DOCX:
             return
         now = time.time()
-        if now - self._last < 4:   # debounce — Word saves multiple times
+        if now - self._last < 4:    # debounce multiple rapid saves
             return
         self._last = now
-        convert_and_deploy()
+        open_deploy_terminal()
 
     on_modified = _handle
     on_created  = _handle
@@ -96,10 +59,10 @@ class CVHandler(FileSystemEventHandler):
 
 if __name__ == "__main__":
     if not DOCX.exists():
-        log(f"Error: '{DOCX}' not found.")
+        logging.error(f"'{DOCX}' not found.")
         sys.exit(1)
 
-    log(f"Watcher started. Monitoring: {DOCX.name}")
+    logging.info(f"Watcher started. Monitoring: {DOCX.name}")
 
     handler  = CVHandler()
     observer = Observer()
@@ -109,6 +72,6 @@ if __name__ == "__main__":
     try:
         observer.join()
     except KeyboardInterrupt:
-        log("Watcher stopped.")
+        logging.info("Watcher stopped.")
         observer.stop()
         observer.join()
