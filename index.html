@@ -132,7 +132,7 @@
         height: auto;
       }
 
-      canvas { width: 100% !important; height: auto !important; }
+      canvas { max-width: 100%; }
     }
 
     /* Annotation link overlay */
@@ -304,24 +304,29 @@
       try {
         pdfDoc = await pdfjsLib.getDocument('Tehman CV.pdf').promise;
 
+        // Step 1: add ALL wrappers to DOM first so flex layout
+        // distributes space correctly before we read any dimensions
         for (let i = 1; i <= pdfDoc.numPages; i++) {
           const wrapper   = document.createElement('div');
           wrapper.className = 'page-wrapper';
-
           const container = document.createElement('div');
           container.className = 'page-container';
-
           const canvas = document.createElement('canvas');
           container.appendChild(canvas);
           wrapper.appendChild(container);
           viewer.appendChild(wrapper);
-
           wrappers.push(wrapper);
           canvases.push(canvas);
           containers.push(container);
+        }
 
-          await renderPage(i, canvas, container, wrapper);
-          requestAnimationFrame(() => wrapper.classList.add('visible'));
+        // Step 2: wait one frame so the browser calculates final flex dimensions
+        await new Promise(r => requestAnimationFrame(r));
+
+        // Step 3: render each page with correct wrapper dimensions
+        for (let i = 0; i < pdfDoc.numPages; i++) {
+          await renderPage(i + 1, canvases[i], containers[i], wrappers[i]);
+          wrappers[i].classList.add('visible');
         }
 
         loading.classList.add('hidden');
