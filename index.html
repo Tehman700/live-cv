@@ -209,10 +209,55 @@
       flex-shrink: 0;
     }
 
+    /* Custom cursor */
+    * { cursor: none !important; }
+
+    #cursor-dot {
+      position: fixed;
+      top: 0; left: 0;
+      width: 8px; height: 8px;
+      background: #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s ease, height 0.2s ease, background 0.2s ease, opacity 0.3s ease;
+    }
+
+    #cursor-ring {
+      position: fixed;
+      top: 0; left: 0;
+      width: 36px; height: 36px;
+      border: 1.5px solid rgba(255,255,255,0.6);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 9998;
+      transform: translate(-50%, -50%);
+      transition: width 0.25s ease, height 0.25s ease, border-color 0.25s ease, opacity 0.3s ease;
+    }
+
+    body.cursor-hover #cursor-dot {
+      width: 12px; height: 12px;
+      background: #fff;
+    }
+
+    body.cursor-hover #cursor-ring {
+      width: 52px; height: 52px;
+      border-color: rgba(255,255,255,0.9);
+    }
+
+    body.cursor-hidden #cursor-dot,
+    body.cursor-hidden #cursor-ring {
+      opacity: 0;
+    }
+
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+
+  <div id="cursor-dot"></div>
+  <div id="cursor-ring"></div>
 
   <div id="toolbar">
     <a id="dl-btn" href="Tehman CV.pdf" download="Tehman Hassan CV.pdf">
@@ -360,6 +405,42 @@
     });
 
     init();
+
+    // ── Custom cursor ──────────────────────────────────────────────────────────
+    const dot  = document.getElementById('cursor-dot');
+    const ring = document.getElementById('cursor-ring');
+
+    let mouseX = -100, mouseY = -100;
+    let ringX  = -100, ringY  = -100;
+
+    document.addEventListener('mousemove', e => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+      dot.style.left = mouseX + 'px';
+      dot.style.top  = mouseY + 'px';
+      document.body.classList.remove('cursor-hidden');
+    });
+
+    document.addEventListener('mouseleave', () => document.body.classList.add('cursor-hidden'));
+    document.addEventListener('mouseenter', () => document.body.classList.remove('cursor-hidden'));
+
+    // Ring follows with smooth lag via lerp
+    (function animateRing() {
+      ringX += (mouseX - ringX) * 0.12;
+      ringY += (mouseY - ringY) * 0.12;
+      ring.style.left = ringX + 'px';
+      ring.style.top  = ringY + 'px';
+      requestAnimationFrame(animateRing);
+    })();
+
+    // Grow cursor on interactive elements
+    const hoverTargets = 'a, button, canvas';
+    document.addEventListener('mouseover', e => {
+      if (e.target.closest(hoverTargets)) document.body.classList.add('cursor-hover');
+    });
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest(hoverTargets)) document.body.classList.remove('cursor-hover');
+    });
   </script>
 </body>
 </html>
