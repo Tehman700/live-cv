@@ -17,10 +17,14 @@ except ImportError:
     from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
 
-BASE_DIR     = Path(__file__).parent.resolve()
-DOCX         = BASE_DIR / "Tehman CV.docx"
+BASE_DIR      = Path(__file__).parent.resolve()
+DOCX          = BASE_DIR / "Tehman CV.docx"
 DEPLOY_SCRIPT = BASE_DIR / "deploy.py"
-LOG_FILE     = BASE_DIR / "watcher.log"
+LOG_FILE      = BASE_DIR / "watcher.log"
+
+# pythonw.exe never opens a window, so find python.exe explicitly for the popup
+_pythonw = Path(sys.executable)
+PYTHON_EXE = str(_pythonw.parent / "python.exe") if (_pythonw.parent / "python.exe").exists() else "python"
 
 logging.basicConfig(
     filename=str(LOG_FILE),
@@ -34,7 +38,7 @@ def open_deploy_terminal():
     """Open a new visible terminal window running deploy.py."""
     logging.info("Change detected — opening deploy terminal.")
     subprocess.Popen(
-        [sys.executable, str(DEPLOY_SCRIPT)],
+        [PYTHON_EXE, str(DEPLOY_SCRIPT)],
         creationflags=subprocess.CREATE_NEW_CONSOLE,
         cwd=str(BASE_DIR),
     )
