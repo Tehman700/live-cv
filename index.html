@@ -158,10 +158,52 @@
       border-radius: 2px;
     }
 
+    /* Download button */
+    #dl-btn {
+      position: fixed;
+      top: 14px;
+      right: 16px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 6px;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    #dl-btn:hover {
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.45);
+    }
+
+    #dl-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
     @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+
+  <a id="dl-btn" href="Tehman CV.pdf" download="Tehman Hassan CV.pdf">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 2v8M5 7l3 3 3-3"/><path d="M2 13h12"/>
+    </svg>
+    Download CV
+  </a>
 
   <div id="loading">
     <div class="spinner"></div>
