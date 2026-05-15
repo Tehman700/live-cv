@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 CV Auto-Deploy Pipeline — runs silently in the background.
 Watches Tehman CV.docx, converts to PDF, pushes to GitHub.
@@ -108,10 +107,8 @@ if __name__ == "__main__":
     observer.start()
 
     try:
-        while True:
-            time.sleep(1)
+        observer.join()
     except KeyboardInterrupt:
         log("Watcher stopped.")
         observer.stop()
-
-    observer.join()
+        observer.join()
