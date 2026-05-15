@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "**/*", "use": "@vercel/static" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)\\.pdf",
+      "headers": [
+        { "key": "Content-Type", "value": "application/pdf" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ]
+}

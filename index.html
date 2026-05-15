@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tehman Hassan — CV</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: #6b6b6b;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #viewer {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .page-wrapper {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.4s ease;
+    }
+
+    .page-wrapper.visible { opacity: 1; }
+
+    canvas {
+      display: block;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,0.35),
+        0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    /* Loading */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      background: #6b6b6b;
+      z-index: 100;
+      transition: opacity 0.35s ease;
+    }
+
+    #loading.hidden { opacity: 0; pointer-events: none; }
+
+    .spinner {
+      width: 28px; height: 28px;
+      border: 2px solid rgba(255,255,255,0.15);
+      border-top-color: rgba(255,255,255,0.6);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    #loading p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* Error */
+    #error-msg {
+      display: none;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      background: #6b6b6b;
+      z-index: 100;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    #error-msg p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      line-height: 1.8;
+    }
+
+    #error-msg code {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 5px 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+    }
+
+    /* Mobile: scroll naturally, stack vertically */
+    @media (max-width: 720px) {
+      html, body { overflow: auto; height: auto; }
+
+      #viewer {
+        flex-direction: column;
+        align-items: center;
+        height: auto;
+        overflow: visible;
+        padding: 16px 12px;
+        gap: 16px;
+      }
+
+      .page-wrapper {
+        flex: none;
+        width: 100%;
+        height: auto;
+      }
+
+      canvas { width: 100% !important; height: auto !important; }
+    }
+
+    /* Annotation link overlay */
+    .page-container {
+      position: relative;
+      line-height: 0;
+    }
+
+    .ann-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .ann-layer a {
+      position: absolute;
+      pointer-events: all;
+      cursor: pointer;
+    }
+
+    .ann-layer a:hover {
+      background: rgba(100, 150, 255, 0.15);
+      border-radius: 2px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Loading CV&hellip;</p>
+  </div>
+
+  <div id="error-msg">
+    <div>
+      <p>PDF couldn't load from the filesystem.<br>Run a local server:</p>
+      <code>python -m http.server 8000</code>
+    </div>
+  </div>
+
+  <div id="viewer"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const viewer   = document.getElementById('viewer');
+    const loading  = document.getElementById('loading');
+    const errorMsg = document.getElementById('error-msg');
+
+    let pdfDoc = null;
+    const wrappers    = [];
+    const canvases    = [];
+    const containers  = [];
+
+    const isMobile = () => window.innerWidth <= 720;
+
+    async function renderPage(pageNum, canvas, container, wrapper) {
+      const page = await pdfDoc.getPage(pageNum);
+      const dpr  = window.devicePixelRatio || 1;
+      const vp0  = page.getViewport({ scale: 1 });
+
+      let scale;
+      if (isMobile()) {
+        const w = wrapper.clientWidth || window.innerWidth - 24;
+        scale = (w / vp0.width) * dpr;
+      } else {
+        const availW = wrapper.clientWidth  || (window.innerWidth  - 48) / pdfDoc.numPages;
+        const availH = wrapper.clientHeight || (window.innerHeight - 32);
+        scale = Math.min(availW / vp0.width, availH / vp0.height) * dpr;
+      }
+
+      const vp   = page.getViewport({ scale });
+      const cssW = vp.width  / dpr;
+      const cssH = vp.height / dpr;
+
+      canvas.width        = vp.width;
+      canvas.height       = vp.height;
+      canvas.style.width  = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+
+      container.style.width  = cssW + 'px';
+      container.style.height = cssH + 'px';
+
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+      // Remove old annotation layer before re-drawing
+      const old = container.querySelector('.ann-layer');
+      if (old) old.remove();
+
+      // Overlay clickable links on top of the canvas
+      const annotations = await page.getAnnotations();
+      const links = annotations.filter(a => (a.url || a.unsafeUrl) && a.subtype === 'Link');
+
+      if (links.length) {
+        const layer = document.createElement('div');
+        layer.className = 'ann-layer';
+
+        for (const ann of links) {
+          const [x1, y1, x2, y2] = pdfjsLib.Util.normalizeRect(
+            vp.convertToViewportRectangle(ann.rect)
+          );
+          const a = document.createElement('a');
+          a.href   = ann.url || ann.unsafeUrl;
+          a.target = '_blank';
+          a.rel    = 'noopener noreferrer';
+          a.style.cssText = `left:${x1/dpr}px;top:${y1/dpr}px;width:${(x2-x1)/dpr}px;height:${(y2-y1)/dpr}px;`;
+          layer.appendChild(a);
+        }
+
+        container.appendChild(layer);
+      }
+    }
+
+    async function init() {
+      try {
+        pdfDoc = await pdfjsLib.getDocument('Tehman CV.pdf').promise;
+
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const wrapper   = document.createElement('div');
+          wrapper.className = 'page-wrapper';
+
+          const container = document.createElement('div');
+          container.className = 'page-container';
+
+          const canvas = document.createElement('canvas');
+          container.appendChild(canvas);
+          wrapper.appendChild(container);
+          viewer.appendChild(wrapper);
+
+          wrappers.push(wrapper);
+          canvases.push(canvas);
+          containers.push(container);
+
+          await renderPage(i, canvas, container, wrapper);
+          requestAnimationFrame(() => wrapper.classList.add('visible'));
+        }
+
+        loading.classList.add('hidden');
+      } catch (err) {
+        console.error(err);
+        loading.style.display = 'none';
+        errorMsg.style.display = 'flex';
+      }
+    }
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(async () => {
+        if (!pdfDoc) return;
+        for (let i = 0; i < pdfDoc.numPages; i++) {
+          await renderPage(i + 1, canvases[i], containers[i], wrappers[i]);
+        }
+      }, 150);
+    });
+
+    init();
+  </script>
+</body>
+</html>
