@@ -37,9 +37,10 @@ logging.basicConfig(
 def open_deploy_terminal():
     """Open a new visible terminal window running deploy.py."""
     logging.info("Change detected — opening deploy terminal.")
+    # Use cmd /c start — the only reliable way to get a visible window
+    # regardless of whether the parent process is a service or scheduled task
     subprocess.Popen(
-        [PYTHON_EXE, str(DEPLOY_SCRIPT)],
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
+        ['cmd', '/c', 'start', 'CV Auto-Deploy', PYTHON_EXE, str(DEPLOY_SCRIPT)],
         cwd=str(BASE_DIR),
     )
 

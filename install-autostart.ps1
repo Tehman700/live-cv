@@ -1,12 +1,12 @@
-# Run this script once to register the CV watcher as a Windows startup task.
-# Right-click -> "Run with PowerShell" (or run from an admin terminal).
+# Run this script once to register the CV watcher to start at Windows login.
+# Right-click -> "Run with PowerShell"
 
 $ErrorActionPreference = "Stop"
 
 $dir    = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $script = Join-Path $dir "watch.py"
 
-# Find pythonw.exe (runs Python with no console window)
+# Find pythonw.exe
 $pythonCmd = Get-Command "pythonw.exe" -ErrorAction SilentlyContinue
 if ($pythonCmd) {
     $exe = $pythonCmd.Source
@@ -16,35 +16,34 @@ if ($pythonCmd) {
 }
 
 if (-not (Test-Path $exe)) {
-    Write-Host "ERROR: pythonw.exe not found at $exe"
-    Write-Host "Make sure Python is installed."
+    Write-Host "ERROR: pythonw.exe not found."
     Read-Host "Press Enter to exit"
     exit 1
 }
 
-Write-Host "Python : $exe"
-Write-Host "Script : $script"
+# Remove old Task Scheduler entry if present (ignore errors if no permission)
+try { schtasks /delete /tn "CV Auto-Deploy Watcher" /f 2>$null } catch {}
+
+# Write a VBS launcher to the Startup folder (no console flash, runs at login)
+$startupFolder = [Environment]::GetFolderPath("Startup")
+$vbsPath = Join-Path $startupFolder "CV-Watcher.vbs"
+
+$line1 = 'Set WshShell = CreateObject("WScript.Shell")'
+$line2 = 'WshShell.Run Chr(34) & "' + $exe + '" & Chr(34) & " " & Chr(34) & "' + $script + '" & Chr(34), 0, False'
+$vbsContent = $line1 + "`r`n" + $line2
+
+Set-Content -Path $vbsPath -Value $vbsContent -Encoding ASCII
+
+Write-Host ""
+Write-Host "Startup entry created: $vbsPath"
 Write-Host ""
 
-$action   = New-ScheduledTaskAction -Execute $exe -Argument "`"$script`""
-$trigger  = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -MultipleInstances IgnoreNew
+# Stop any old watcher, start the fixed one right now
+Get-Process pythonw -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 600
+Start-Process -FilePath $exe -ArgumentList ('"' + $script + '"') -WindowStyle Hidden
 
-Register-ScheduledTask `
-    -TaskName "CV Auto-Deploy Watcher" `
-    -Action   $action `
-    -Trigger  $trigger `
-    -Settings $settings `
-    -RunLevel Highest `
-    -Force | Out-Null
-
-Write-Host "Done! The watcher is now registered."
-Write-Host "It will start automatically every time you log into Windows."
-Write-Host ""
-Write-Host "Starting it right now..."
-Start-Process -FilePath $exe -ArgumentList "`"$script`"" -WindowStyle Hidden
-
-Write-Host "Watcher is running in the background."
-Write-Host "Check 'watcher.log' in the Live CV folder to see its activity."
+Write-Host "Watcher is running now."
+Write-Host "Save Tehman CV.docx and a terminal window should pop up."
 Write-Host ""
 Read-Host "Press Enter to close"
